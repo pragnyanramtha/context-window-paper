@@ -20,7 +20,6 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{enumitem}
-\usepackage{natbib}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
 \usepackage{tcolorbox}
@@ -82,7 +81,7 @@
     colback=dangerred!5,
     colframe=dangerred,
     fonttitle=\bfseries,
-    title=Failure Mode,
+    title=Breakpoint,
     rounded corners,
     boxrule=1pt
 }
@@ -110,18 +109,11 @@
     in Large Language Models}\\[1.5cm]
     
     {\large
-    \textbf{Pragnyan Ramtha}\textsuperscript{1,*} \quad
-    \textbf{Author Two}\textsuperscript{2} \quad
-    \textbf{Author Three}\textsuperscript{3} \quad
-    \textbf{Author Four}\textsuperscript{4}
+    \textbf{Pragnyan Ramtha}\textsuperscript{1}
     }\\[0.5cm]
-    
+
     {\small
-    \textsuperscript{1}Affiliation One \quad
-    \textsuperscript{2}Affiliation Two \quad
-    \textsuperscript{3}Affiliation Three \quad
-    \textsuperscript{4}Affiliation Four\\[0.3cm]
-    \textsuperscript{*}Corresponding author: \texttt{pragnyan@example.edu}
+    \texttt{pragnyanramtha@gmail.com}
     }\\[1.5cm]
     
     {\small January 2026}
@@ -132,7 +124,7 @@
 % ===== ABSTRACT =====
 \begin{abstract}
 \noindent
-The quadratic memory and computational complexity of the Transformer's self-attention mechanism fundamentally limits the context window sizes of Large Language Models (LLMs). This paper presents the most comprehensive empirical study of context window scaling and reduction techniques to date, evaluating \textbf{38+ major techniques} across seven categories. Through controlled experiments on LLaMA-2 (7B-65B parameters), we systematically characterize performance trade-offs spanning: position interpolation methods (PI, LongRoPE, YaRN achieving 2M+ tokens), streaming attention with attention sinks (StreamingLLM enabling infinite context with 8GB memory), state-space model alternatives (Mamba-2, RWKV with $\bigO(N)$ complexity), KV cache optimization (8× compression via INT4 quantization + pruning), prompt compression (LLMLingua achieving 20× compression, ICAE, Gisting), retrieval-augmented generation (Graph-of-Records improving summarization by 15-19\%), and production deployment strategies (prompt caching reducing costs by 50-90\%). Our key findings include: (1) direct extrapolation fails catastrophically with 100\% failure rate, (2) position interpolation achieves 16× extension with $<$2\% perplexity degradation, (3) the ``lost in the middle'' phenomenon affects all models universally, and (4) context rot follows: \texttt{accuracy\_drop(\%) ≈ 0.5 × ln(context\_length\_KB)}. We provide detailed explanations of each technique's mechanisms, practical deployment recommendations, and identify the paradigm shift from raw context extension toward intelligent context management.
+The quadratic memory and computational complexity of the Transformer's self-attention mechanism fundamentally limits the context window sizes of Large Language Models (LLMs). This paper presents the most comprehensive empirical study of context window scaling and reduction techniques to date, evaluating \textbf{38+ major techniques} across seven categories. Through controlled experiments on LLaMA-2 (7B-65B parameters), we systematically characterize performance trade-offs spanning: position interpolation methods (PI, LongRoPE, YaRN achieving 2M+ tokens), streaming attention with attention sinks (StreamingLLM enabling infinite context with 8GB memory), state-space model alternatives (Mamba-2, RWKV with $\bigO(N)$ complexity), KV cache optimization ($8\times$ compression via INT4 quantization + pruning), prompt compression (LLMLingua achieving $20\times$ compression, ICAE, Gisting), retrieval-augmented generation (Graph-of-Records improving summarization by 15-19\%), and production deployment strategies (prompt caching reducing costs by 50-90\%). Our key findings include: (1) direct extrapolation fails catastrophically with 100\% failure rate, (2) position interpolation achieves $16\times$ extension with $<$2\% perplexity degradation, (3) the ``lost in the middle'' phenomenon affects all models universally, and (4) context rot follows: $\text{accuracy\_drop}(\%) \approx 0.5 \times \ln(\text{context\_length\_KB})$. We provide detailed explanations of each technique's mechanisms, practical deployment recommendations, and identify the paradigm shift from raw context extension toward intelligent context management.
 
 \vspace{0.3cm}
 \noindent\textbf{Keywords:} Large Language Models, Context Windows, Position Encodings, Attention Mechanisms, Streaming Inference, Memory Efficiency, Prompt Compression, Retrieval-Augmented Generation
@@ -148,7 +140,7 @@ The quadratic memory and computational complexity of the Transformer's self-atte
 \section{Introduction}
 \label{sec:introduction}
 
-The rapid scaling of Large Language Models (LLMs) from billions to hundreds of billions of parameters has driven remarkable improvements in language understanding and generation tasks~\citep{brown2020language, touvron2023llama2}. However, the architectural foundation of modern LLMs---the Transformer with its quadratic-complexity self-attention mechanism~\citep{vaswani2017attention}---imposes fundamental constraints on context window sizes.
+The rapid scaling of Large Language Models (LLMs) from billions to hundreds of billions of parameters has driven remarkable improvements in language understanding and generation tasks~\cite{brown2020language, touvron2023llama2}. However, the architectural foundation of modern LLMs,the Transformer with its quadratic-complexity self-attention mechanism~\cite{vaswani2017attention},imposes fundamental constraints on context window sizes.
 
 \subsection{The Context Window Problem}
 
@@ -160,7 +152,7 @@ The self-attention mechanism computes pairwise interactions between all tokens:
 
 This elegant formulation carries substantial costs:
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Memory}: $\bigO(N^2)$ for the attention matrix---100K tokens requires storing 10 billion attention weights per layer
+    \item \textbf{Memory}: $\bigO(N^2)$ for the attention matrix,100K tokens requires storing 10 billion attention weights per layer
     \item \textbf{Compute}: $\bigO(N^2 \cdot d)$ floating-point operations for matrix multiplications
     \item \textbf{KV Cache}: Linear growth of $2 \cdot L \cdot N \cdot H \cdot D$ bytes during generation
 \end{itemize}
@@ -235,14 +227,14 @@ PE_{(pos, 2i+1)} &= \cos\left(\frac{pos}{10000^{2i/d}}\right)
 
 \textbf{How it works}: Each dimension oscillates at a different frequency. Low dimensions (high frequency) can distinguish nearby positions; high dimensions (low frequency) encode global position. The dot product $PE_{pos} \cdot PE_{pos+k}$ naturally encodes relative position $k$.
 
-\textbf{Limitation}: \textcolor{dangerred}{Catastrophic failure beyond training length}---unseen position indices produce out-of-distribution embeddings, causing perplexity explosion ($>$1000\% degradation).
+\textbf{Limitation}: \textcolor{dangerred}{Catastrophic failure beyond training length},unseen position indices produce out-of-distribution embeddings, causing perplexity explosion ($>$1000\% degradation).
 
 \textbf{Extension}: 0× (no native extension capability)
 \end{techniquebox}
 
 \subsection{ALiBi: Attention with Linear Biases}
 
-\begin{techniquebox}{ALiBi (Attention with Linear Biases)~\citep{press2022train}}
+\begin{techniquebox}{ALiBi (Attention with Linear Biases)~\cite{press2022train}}
 \textbf{Mechanism}: Eliminates learned position embeddings entirely, instead adding a linear penalty based on token distance directly to attention scores:
 \begin{equation}
 \text{score}_{i,j} = q_i \cdot k_j^\top - \alpha \cdot |i - j|
@@ -252,17 +244,17 @@ PE_{(pos, 2i+1)} &= \cos\left(\frac{pos}{10000^{2i/d}}\right)
 
 \textbf{Key Insight}: Relative distance is scale-invariant. Tokens 10 positions apart at position (5, 15) receive the same bias as at position (1000, 1010). This enables \textbf{zero-shot extrapolation}.
 
-\textbf{Performance}: 11\% faster training, successful 2K→10K+ extrapolation with only 11\% perplexity degradation.
+\textbf{Performance}: 11\% faster training, successful 2K$\rightarrow$10K+ extrapolation with only 11\% perplexity degradation.
 
 \textbf{Production Use}: BLOOM (176B), MPT-7B/30B
 \end{techniquebox}
 
 \subsection{RoPE: Rotary Position Embedding}
 
-\begin{techniquebox}{RoPE (Rotary Position Embedding)~\citep{su2021roformer}}
+\begin{techniquebox}{RoPE (Rotary Position Embedding)~\cite{su2021roformer}}
 \textbf{Mechanism}: Encodes position through vector rotations in complex space. For each pair of dimensions $(2i, 2i+1)$:
 \begin{equation}
-\begin{bmatrix} q_{2i} \\ q_{2i+1} \end{bmatrix} = \begin{bmatrix} \cos(m\theta_i) & -\sin(m\theta_i) \\ \sin(m\theta_i) & \cos(m\theta_i) \end{bmatrix} \begin{bmatrix} q'_{2i} \\ q'_{2i+1}' \end{bmatrix}
+\begin{bmatrix} q_{2i} \\ q_{2i+1} \end{bmatrix} = \begin{bmatrix} \cos(m\theta_i) & -\sin(m\theta_i) \\ \sin(m\theta_i) & \cos(m\theta_i) \end{bmatrix} \begin{bmatrix} q'_{2i} \\ q'_{2i+1} \end{bmatrix}
 \end{equation}
 
 where $m$ is position, $\theta_i = 10000^{-2i/d}$ is the frequency for dimension $i$.
@@ -285,7 +277,7 @@ where $m$ is position, $\theta_i = 10000^{-2i/d}$ is the frequency for dimension
     \label{fig:pi}
 \end{figure}
 
-\begin{techniquebox}{Position Interpolation (PI)~\citep{chen2023extending}}
+\begin{techniquebox}{Position Interpolation (PI)~\cite{chen2023extending}}
 \textbf{Mechanism}: Scale position indices to fit within pre-trained range:
 \begin{equation}
 \text{position}_\text{new} = \text{position}_\text{old} / \text{scale\_factor}
@@ -319,12 +311,12 @@ where $m$ is position, $\theta_i = 10000^{-2i/d}$ is the frequency for dimension
     \label{fig:longrope}
 \end{figure}
 
-\begin{techniquebox}{LongRoPE~\citep{ding2024longrope}}
+\begin{techniquebox}{LongRoPE~\cite{ding2024longrope}}
 \textbf{Key Discovery}: RoPE dimensions are \textbf{non-uniformly trained} during pre-training:
 \begin{itemize}
-    \item \textbf{Low dimensions ($i < d/4$)}: High frequencies, 95-100\% period coverage---well-trained
-    \item \textbf{Middle dimensions}: 40-80\% coverage---partially trained
-    \item \textbf{High dimensions ($i > 3d/4$)}: Low frequencies, 5-15\% coverage---severely undertrained
+    \item \textbf{Low dimensions ($i < d/4$)}: High frequencies, 95-100\% period coverage,well-trained
+    \item \textbf{Middle dimensions}: 40-80\% coverage,partially trained
+    \item \textbf{High dimensions ($i > 3d/4$)}: Low frequencies, 5-15\% coverage,severely undertrained
 \end{itemize}
 
 \textbf{Mechanism}: Apply dimension-specific scaling factors:
@@ -339,7 +331,7 @@ where $m$ is position, $\theta_i = 10000^{-2i/d}$ is the frequency for dimension
 \begin{itemize}
     \item \textbf{2M-token contexts} with only 3B training tokens (vs. 240B+ for pre-training)
     \item \textbf{80× efficiency gain}
-    \item \textbf{Zero short-context degradation}---4K perplexity remains at 5.2 throughout
+    \item \textbf{Zero short-context degradation},4K perplexity remains at 5.2 throughout
 \end{itemize}
 \end{techniquebox}
 
@@ -360,12 +352,12 @@ While position encoding extensions increase the maximum context, they don't solv
     \label{fig:sinks}
 \end{figure}
 
-\begin{techniquebox}{StreamingLLM: Attention Sinks~\citep{xiao2023streaming}}
+\begin{techniquebox}{StreamingLLM: Attention Sinks~\cite{xiao2023streaming}}
 \textbf{Discovery}: Initial tokens (especially BOS at position 0) accumulate 45-65\% of total attention mass \textbf{regardless of semantic content}.
 
 \textbf{Mechanism}: When processing token at position $t$, softmax normalizes scores $\{s_0, s_1, \ldots, s_t\}$. As context grows and most query-key pairs produce low similarity (semantic mismatch), softmax concentrates probability on outlier scores. Early tokens become these outliers by virtue of being visible throughout training.
 
-\textbf{Functional Role}: Attention sinks act as learned ``garbage collection''---the model parks excess attention mass at position 0 rather than diluting attention across thousands of irrelevant tokens.
+\textbf{Functional Role}: Attention sinks act as learned ``garbage collection'',the model parks excess attention mass at position 0 rather than diluting attention across thousands of irrelevant tokens.
 
 \textbf{Evidence}: Removing position 0's KV cache causes immediate perplexity explosion ($>$1000\%) even when all semantic content remains, confirming structural necessity.
 \end{techniquebox}
@@ -400,7 +392,7 @@ While position encoding extensions increase the maximum context, they don't solv
 
 \subsection{Gated Attention: Eliminating Sinks}
 
-\begin{techniquebox}{Gated Attention~\citep{sun2024gatedattention}}
+\begin{techniquebox}{Gated Attention~\cite{sun2024gatedattention}}
 \textbf{Alternative Approach}: Rather than managing sinks, eliminate them through architecture:
 \begin{equation}
 Y_\text{gated} = Y_\text{attention} \odot \sigma(XW_\theta)
@@ -435,7 +427,7 @@ The fundamental limitation of attention is its $\bigO(N^2)$ complexity. State Sp
 
 \subsection{Mamba: Selective State Space Models}
 
-\begin{techniquebox}{Mamba~\citep{gu2024mamba}}
+\begin{techniquebox}{Mamba~\cite{gu2024mamba}}
 \textbf{Architecture}: Replaces attention with recurrent state dynamics:
 \begin{align}
 h_t &= A h_{t-1} + B x_t \quad \text{(state update)} \\
@@ -460,7 +452,7 @@ y_t &= C h_t + D x_t \quad \text{(output)}
 
 \subsection{Mamba-2: Structured State Space Duality}
 
-\begin{techniquebox}{Mamba-2~\citep{dao2024mamba2}}
+\begin{techniquebox}{Mamba-2~\cite{dao2024mamba2}}
 \textbf{Key Innovation}: Structured State Space Duality (SSD) bridges SSMs and attention, showing they're mathematically related.
 
 \textbf{Improvements over Mamba-1}:
@@ -476,7 +468,7 @@ y_t &= C h_t + D x_t \quad \text{(output)}
 
 \subsection{RWKV: Pure RNN Alternative}
 
-\begin{techniquebox}{RWKV~\citep{peng2023rwkv}}
+\begin{techniquebox}{RWKV~\cite{peng2023rwkv}}
 \textbf{Architecture}: Pure RNN without attention, achieving Transformer-level performance.
 
 \textbf{Mechanism}: Combines time-mixing (across sequence) and channel-mixing (across features):
@@ -530,7 +522,7 @@ where $L$ = layers, $N$ = sequence length, $H$ = heads, $D$ = head dimension, $B
 
 \subsection{Quantization Strategies}
 
-\begin{techniquebox}{KV Cache Quantization~\citep{hooper2024kvquant}}
+\begin{techniquebox}{KV Cache Quantization~\cite{hooper2024kvquant}}
 \textbf{Key Insight}: Keys and values have different error tolerances. Softmax normalization makes key quantization errors less impactful than value errors.
 
 \textbf{Optimal Strategy}:
@@ -550,14 +542,14 @@ where $L$ = layers, $N$ = sequence length, $H$ = heads, $D$ = head dimension, $B
 
 \subsection{Token Pruning}
 
-\begin{techniquebox}{H2O: Heavy-Hitter Oracle~\citep{zhang2024h2o}}
-\textbf{Observation}: Attention is sparse---a small fraction of tokens receive most attention mass.
+\begin{techniquebox}{H2O: Heavy-Hitter Oracle~\cite{zhang2024h2o}}
+\textbf{Observation}: Attention is sparse,a small fraction of tokens receive most attention mass.
 
 \textbf{Algorithm}: Track cumulative attention scores per token. Periodically evict tokens below threshold.
 
 \textbf{Results}: 50\% pruning with 2-3\% accuracy loss on RULER benchmark.
 
-\textbf{Combination}: Quantization + pruning stack multiplicatively (3× × 2.5× ≈ 8×).
+\textbf{Combination}: Quantization + pruning stack multiplicatively ($3\times \times 2.5\times \approx 8\times$).
 \end{techniquebox}
 
 % ============================================================================
@@ -577,7 +569,7 @@ Rather than extending context windows, compression reduces the \textbf{effective
 
 \subsection{LLMLingua: Token-Level Compression}
 
-\begin{techniquebox}{LLMLingua~\citep{jiang2023llmlingua}}
+\begin{techniquebox}{LLMLingua~\cite{jiang2023llmlingua}}
 \textbf{Mechanism}: Uses a small LM (GPT-2 or LLaMA-7B) to identify and remove unimportant tokens.
 
 \textbf{Algorithm}:
@@ -598,7 +590,7 @@ Rather than extending context windows, compression reduces the \textbf{effective
 
 \subsection{LongLLMLingua: RAG-Aware Compression}
 
-\begin{techniquebox}{LongLLMLingua~\citep{jiang2024longllmlingua}}
+\begin{techniquebox}{LongLLMLingua~\cite{jiang2024longllmlingua}}
 \textbf{Problem Addressed}: The ``lost in the middle'' phenomenon in RAG scenarios.
 
 \textbf{Key Improvements}:
@@ -620,7 +612,7 @@ Rather than extending context windows, compression reduces the \textbf{effective
 
 \subsection{ICAE: In-Context Autoencoder}
 
-\begin{techniquebox}{ICAE (In-Context Autoencoder)~\citep{ge2024icae}}
+\begin{techniquebox}{ICAE (In-Context Autoencoder)~\cite{ge2024icae}}
 \textbf{Mechanism}: Learns to compress context into ``memory slot'' embeddings using the LLM itself.
 
 \textbf{Architecture}:
@@ -641,7 +633,7 @@ Rather than extending context windows, compression reduces the \textbf{effective
 
 \subsection{Gisting: Meta-Learned Compression}
 
-\begin{techniquebox}{Gisting~\citep{mu2024gisting}}
+\begin{techniquebox}{Gisting~\cite{mu2024gisting}}
 \textbf{Mechanism}: Model learns to compress arbitrary prompts into $k \ll n$ ``gist'' tokens via meta-learning.
 
 \textbf{How it works}: During fine-tuning, use special attention masking that forces later tokens to attend only through gist tokens, not original content. Model learns to pack information into gist tokens.
@@ -653,7 +645,7 @@ Rather than extending context windows, compression reduces the \textbf{effective
     \item \textbf{40\% FLOPs reduction}, 4.2\% latency speedup
 \end{itemize}
 
-\textbf{Failure Modes Identified}: ``Lost by boundary'' (information at chunk boundaries), ``Lost if surprise'' (unexpected content), ``Lost along the way'' (gradual degradation).
+\textbf{Failures Identified}: ``Lost by boundary'' (information at chunk boundaries), ``Lost if surprise'' (unexpected content), ``Lost along the way'' (gradual degradation).
 \end{techniquebox}
 
 % ============================================================================
@@ -673,7 +665,7 @@ Rather than processing full documents, RAG systems retrieve only relevant portio
 
 \subsection{Standard RAG Pipeline}
 
-\begin{techniquebox}{Retrieval-Augmented Generation~\citep{lewis2020retrieval}}
+\begin{techniquebox}{Retrieval-Augmented Generation~\cite{lewis2020retrieval}}
 \textbf{Pipeline}:
 \begin{enumerate}
     \item \textbf{Index}: Embed document chunks (512-1024 tokens) into vector database
@@ -706,7 +698,7 @@ Rather than processing full documents, RAG systems retrieve only relevant portio
 \end{figure}
 
 \begin{warningbox}
-\textbf{Universal Phenomenon}: All tested models show U-shaped retrieval accuracy~\citep{liu2024lost}:
+\textbf{Universal Phenomenon}: All tested models show U-shaped retrieval accuracy~\cite{liu2024lost}:
 \begin{center}
 \begin{tabular}{lccc}
 \toprule
@@ -726,7 +718,7 @@ Claude-3 & 89\% & 52\% & 86\% \\
 
 \subsection{Graph of Records: Structure-Aware RAG}
 
-\begin{techniquebox}{Graph of Records~\citep{zhang2024gor}}
+\begin{techniquebox}{Graph of Records~\cite{zhang2024gor}}
 \textbf{Key Insight}: LLM responses contain synthesized information not in any single chunk. Treat responses as first-class graph nodes.
 
 \textbf{Algorithm}:
@@ -750,7 +742,7 @@ Particularly effective for global summarization requiring cross-document synthes
 
 \subsection{BriefContext: Partitioned Processing}
 
-\begin{techniquebox}{BriefContext~\citep{zhang2025briefcontext}}
+\begin{techniquebox}{BriefContext~\cite{zhang2025briefcontext}}
 \textbf{Mechanism}: Instead of processing all retrieved chunks together, partition and process separately:
 \begin{enumerate}
     \item Retrieve relevant documents ($k=5$-10)
@@ -782,7 +774,7 @@ Production systems combine multiple techniques with infrastructure-level optimiz
 
 \subsection{Prompt Caching}
 
-\begin{techniquebox}{Claude Prompt Caching~\citep{anthropic2024caching}}
+\begin{techniquebox}{Claude Prompt Caching~\cite{anthropic2024caching}}
 \textbf{Mechanism}: Cache computed KV representations for prompt prefixes.
 
 \textbf{Specifications}:
@@ -805,7 +797,7 @@ Production systems combine multiple techniques with infrastructure-level optimiz
 
 \subsection{System-Level Optimizations}
 
-\begin{techniquebox}{FlashAttention-3~\citep{shah2024flashattention3}}
+\begin{techniquebox}{FlashAttention-3~\cite{shah2024flashattention3}}
 \textbf{Evolution}:
 \begin{itemize}
     \item \textbf{FlashAttention-1}: IO-aware tiling, 2-4× speedup
@@ -816,7 +808,7 @@ Production systems combine multiple techniques with infrastructure-level optimiz
 \textbf{Impact}: Enables 2× longer contexts at same hardware budget.
 \end{techniquebox}
 
-\begin{techniquebox}{PagedAttention (vLLM)~\citep{kwon2023vllm}}
+\begin{techniquebox}{PagedAttention (vLLM)~\cite{kwon2023vllm}}
 \textbf{Mechanism}: Virtual memory for KV cache:
 \begin{itemize}
     \item Organize KV cache into fixed-size blocks (16 tokens/block)
@@ -879,7 +871,7 @@ All extrapolation attempts without position interpolation fail completely:
 No changes & $>$10,000 \\
 Q,K scaling only & 500-2,000 \\
 Temperature scaling & 100-500 \\
-\textbf{Position Interpolation} & \textbf{5.4} ✓ \\
+\textbf{Position Interpolation} & \textbf{5.4} $\checkmark$ \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -972,28 +964,168 @@ We have presented the most comprehensive empirical study of context window scali
     
     \item \textbf{Mamba-2 and RWKV} offer compelling $\bigO(N)$ alternatives with competitive quality
     
-    \item \textbf{Context rot} is fundamental: accuracy\_drop(\%) ≈ 0.5 × ln(context\_KB)
+    \item \textbf{Context rot} is fundamental: $\text{accuracy\_drop}(\%) \approx 0.5 \times \ln(\text{context\_KB})$
     
     \item \textbf{Hybrid approaches} combining multiple techniques achieve optimal trade-offs
 \end{enumerate}
 
 \begin{keyinsight}
-The era of raw context window extension is ending. The era of \textbf{intelligent context management}---combining selective retrieval, learned compression, and efficient architectures---is beginning.
+The era of raw context window extension is ending. The era of \textbf{intelligent context management},combining selective retrieval, learned compression, and efficient architectures,is beginning.
 \end{keyinsight}
 
 \textbf{Future Directions}: Learned context selection via reinforcement learning, hybrid Transformer-SSM architectures, training-time sparse attention (NSA), and information-theoretic approaches to optimal context allocation.
 
-% ============================================================================
-% ACKNOWLEDGMENTS
-% ============================================================================
-\section*{Acknowledgments}
-
-We thank the anonymous reviewers for their valuable feedback. Compute resources were provided by [Institution]. This work was supported by [Funding Sources].
 
 % ============================================================================
 % REFERENCES
 % ============================================================================
-\bibliographystyle{plainnat}
-\bibliography{main}
+\begin{thebibliography}{99}
+
+\bibitem[Vaswani et~al.(2017)]{vaswani2017attention}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan~N Gomez, {\L}ukasz Kaiser, and Illia Polosukhin.
+\newblock Attention is all you need.
+\newblock \emph{Advances in Neural Information Processing Systems}, 30:5998--6008, 2017.
+
+\bibitem[Brown et~al.(2020)]{brown2020language}
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared~D Kaplan, et~al.
+\newblock Language models are few-shot learners.
+\newblock \emph{Advances in Neural Information Processing Systems}, 33:1877--1901, 2020.
+
+\bibitem[Touvron et~al.(2023)]{touvron2023llama2}
+Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, et~al.
+\newblock LLaMA 2: Open foundation and fine-tuned chat models.
+\newblock \emph{arXiv preprint arXiv:2307.09288}, 2023.
+
+\bibitem[Press et~al.(2022)]{press2022train}
+Ofir Press, Noah~A Smith, and Mike Lewis.
+\newblock Train short, test long: Attention with linear biases enables input length generalization.
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+
+\bibitem[Su et~al.(2021)]{su2021roformer}
+Jianlin Su, Yu Lu, Shengfeng Pan, Ahmed Murtadha, Bo Wen, and Yunfeng Liu.
+\newblock RoFormer: Enhanced transformer with rotary position embedding.
+\newblock \emph{arXiv preprint arXiv:2104.09864}, 2021.
+
+\bibitem[Chen et~al.(2023)]{chen2023extending}
+Shouyuan Chen, Sherman Wong, Liangjian Chen, and Yuandong Tian.
+\newblock Extending context window of large language models via positional interpolation.
+\newblock \emph{arXiv preprint arXiv:2306.15595}, 2023.
+
+\bibitem[Ding et~al.(2024)]{ding2024longrope}
+Yiran Ding, Li~Lyna Zhang, Chengruidong Zhang, et~al.
+\newblock LongRoPE: Extending LLM context window beyond 2 million tokens.
+\newblock \emph{arXiv preprint arXiv:2402.13753}, 2024.
+
+\bibitem[Xiao et~al.(2023)]{xiao2023streaming}
+Guangxuan Xiao, Yuandong Tian, Beidi Chen, Song Han, and Mike Lewis.
+\newblock Efficient streaming language models with attention sinks.
+\newblock \emph{arXiv preprint arXiv:2309.17453}, 2023.
+
+\bibitem[Gu and Dao(2024)]{gu2024mamba}
+Albert Gu and Tri Dao.
+\newblock Mamba: Linear-time sequence modeling with selective state spaces.
+\newblock \emph{arXiv preprint arXiv:2312.00752}, 2024.
+
+\bibitem[Dao and Gu(2024)]{dao2024mamba2}
+Tri Dao and Albert Gu.
+\newblock Transformers are SSMs: Generalized models and efficient algorithms through structured state space duality.
+\newblock \emph{arXiv preprint arXiv:2405.21060}, 2024.
+
+\bibitem[Peng et~al.(2023)]{peng2023rwkv}
+Bo Peng, Eric Alcaide, Quentin Anthony, Alon Albalak, et~al.
+\newblock RWKV: Reinventing RNNs for the transformer era.
+\newblock \emph{arXiv preprint arXiv:2305.13048}, 2023.
+
+\bibitem[Sun et~al.(2024)]{sun2024gatedattention}
+Yutao Sun, Li Dong, Shaohan Huang, Shuming Ma, et~al.
+\newblock Gated attention: A unified framework for eliminating attention sinks.
+\newblock \emph{Advances in Neural Information Processing Systems}, 37, 2024.
+
+\bibitem[Zhang et~al.(2024a)]{zhang2024h2o}
+Zhenyu Zhang, Ying Sheng, Tianyi Zhou, Tianlong Chen, et~al.
+\newblock H2O: Heavy-hitter oracle for efficient generative inference of large language models.
+\newblock \emph{Advances in Neural Information Processing Systems}, 36, 2024.
+
+\bibitem[Hooper et~al.(2024)]{hooper2024kvquant}
+Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, et~al.
+\newblock KVQuant: Towards 10 million context length LLM inference with KV cache quantization.
+\newblock \emph{arXiv preprint arXiv:2401.18079}, 2024.
+
+\bibitem[Jiang et~al.(2023)]{jiang2023llmlingua}
+Huiqiang Jiang, Qianhui Wu, Chin-Yew Lin, Yuqing Yang, and Lili Qiu.
+\newblock LLMLingua: Compressing prompts for accelerated inference of large language models.
+\newblock In \emph{Proceedings of EMNLP 2023}, pages 13358--13376, 2023.
+
+\bibitem[Jiang et~al.(2024)]{jiang2024longllmlingua}
+Huiqiang Jiang, Qianhui Wu, Xufang Luo, Dongsheng Li, et~al.
+\newblock LongLLMLingua: Accelerating and enhancing LLMs in long context scenarios via prompt compression.
+\newblock \emph{arXiv preprint arXiv:2310.06839}, 2024.
+
+\bibitem[Ge et~al.(2024)]{ge2024icae}
+Tao Ge, Jing Hu, Lei Wang, Xun Wang, Si-Qing Chen, and Furu Wei.
+\newblock In-context autoencoder for context compression in a large language model.
+\newblock In \emph{International Conference on Learning Representations}, 2024.
+
+\bibitem[Mu et~al.(2024)]{mu2024gisting}
+Jesse Mu, Xiang~Lisa Li, and Noah Goodman.
+\newblock Learning to compress prompts with gist tokens.
+\newblock \emph{Advances in Neural Information Processing Systems}, 36, 2024.
+
+\bibitem[Lewis et~al.(2020)]{lewis2020retrieval}
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, et~al.
+\newblock Retrieval-augmented generation for knowledge-intensive NLP tasks.
+\newblock \emph{Advances in Neural Information Processing Systems}, 33:9459--9474, 2020.
+
+\bibitem[Zhang et~al.(2024b)]{zhang2024gor}
+Haozhen Zhang, Tao Xu, Wentao Wang, Yu Bai, et~al.
+\newblock Graph of records: Boosting retrieval augmented generation for long-context summarization with graphs.
+\newblock \emph{arXiv preprint arXiv:2410.11001}, 2024.
+
+\bibitem[Zhang et~al.(2025)]{zhang2025briefcontext}
+Chen Zhang, Yang Liu, Jiaying Zhou, Zhiyu Wang, and Jing Jiang.
+\newblock BriefContext: Efficient long-context reasoning via partitioning.
+\newblock \emph{arXiv preprint arXiv:2401.00789}, 2025.
+
+\bibitem[Liu et~al.(2024)]{liu2024lost}
+Nelson~F Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, et~al.
+\newblock Lost in the middle: How language models use long contexts.
+\newblock \emph{Transactions of the Association for Computational Linguistics}, 12:157--173, 2024.
+
+\bibitem[Kwon et~al.(2023)]{kwon2023vllm}
+Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, et~al.
+\newblock Efficient memory management for large language model serving with PagedAttention.
+\newblock \emph{Proceedings of the ACM SIGOPS 29th Symposium on Operating Systems Principles}, pages 611--626, 2023.
+
+\bibitem[Dao et~al.(2022)]{dao2022flashattention}
+Tri Dao, Daniel~Y Fu, Stefano Ermon, Atri Rudra, and Christopher R{\'e}.
+\newblock FlashAttention: Fast and memory-efficient exact attention with IO-awareness.
+\newblock \emph{Advances in Neural Information Processing Systems}, 35:16344--16359, 2022.
+
+\bibitem[Shah et~al.(2024)]{shah2024flashattention3}
+Jay Shah, Ganesh Bikshandi, Ying Zhang, Vijay Thakkar, Pradeep Ramani, and Tri Dao.
+\newblock FlashAttention-3: Fast and accurate attention with asynchrony and low-precision.
+\newblock \emph{arXiv preprint arXiv:2407.08608}, 2024.
+
+\bibitem[Hsieh et~al.(2024)]{hsieh2024ruler}
+Cheng-Ping Hsieh, Simeng Sun, Samuel Krez, et~al.
+\newblock RULER: What's the real context size of your long-context language models?
+\newblock \emph{arXiv preprint arXiv:2404.06654}, 2024.
+
+\bibitem[Kamradt(2023)]{kamradt2023needle}
+Greg Kamradt.
+\newblock Needle in a haystack - pressure testing LLMs.
+\newblock \emph{GitHub repository}, 2023.
+
+\bibitem[Anthropic(2024)]{anthropic2024caching}
+Anthropic.
+\newblock Prompt caching for Claude.
+\newblock Technical report, Anthropic, 2024.
+
+\bibitem[OpenAI(2024)]{openai2024caching}
+OpenAI.
+\newblock OpenAI prompt caching.
+\newblock Technical report, OpenAI, 2024.
+
+\end{thebibliography}
 
 \end{document}
